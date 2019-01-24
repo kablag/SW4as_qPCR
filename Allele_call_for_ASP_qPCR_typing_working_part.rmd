@@ -135,7 +135,7 @@ for (position in positions){
   if (ctrl.gene.cq > cq.threshold || is.na(ctrl.gene.cq)) {
     qtab$ctrl_ok[qtab$position == position] <- FALSE
     qtab$ctrl_ok_paired[qtab$position == position] <- FALSE
-    qtab$ctrl_ok_paired[qtab$pair_well == position] <- F
+    qtab$ctrl_ok_paired[qtab$pair_well == position] <- FALSE
   } else {
     qtab$ctrl_delta[qtab$position == position] <- 
       round(abs(ctrl.gene.cq - qtab$cq[qtab$pair_well == position &
@@ -159,15 +159,15 @@ qtab$outlier[qtab$position %in% outlier_pos] <- TRUE
 qtab$outlier_paired[qtab$position %in% outlier_pos | qtab$pair_well %in% outlier_pos] <- TRUE
 
 # qtab$rxn_ok
-qtab$rxn_ok[qtab$ctrl_ok_paired == T &
-              qtab$outlier_paired == F &
+qtab$rxn_ok[qtab$ctrl_ok_paired == TRUE &
+              qtab$outlier_paired == FALSE &
               qtab$ctrl_delta < ctrl.delta] <- TRUE
 
 # qtab$state NAs substitution
 qtab$state[is.na(qtab$state) & qtab$cq < cq.threshold &
              !is.na(qtab$cq) & qtab$rxn_ok == T] <- "Pos"
 qtab$state[is.na(qtab$state) & (qtab$cq > cq.threshold | is.na(qtab$cq)) &
-             qtab$rxn_ok == T] <- "Neg"
+             qtab$rxn_ok == TRUE] <- "Neg"
 
 # qtab$pair_state
 for (position in positions){
