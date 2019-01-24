@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Tool to make allele call for qPCR with allele specific primers and gene specific probes.
@@ -72,24 +72,38 @@ Added columns:
 * endpoint – florescence data for the last cycle of the reaction.
 
 ```{r}
-qtab = q$AsTable(add.columns = list(cq = data$cq, trgt_delta = NA, smaller.one = NA, targetstr = sapply(strsplit(data$tar$id,'_'),'[',1), state = sapply(strsplit(data$tar$id,'_'),'[',2), pair_well = NA, pair_state = NA, ctrl_ok = T, ctrl_ok_paired = T, ctrl_delta = NA, outlier = F, outlier_paired = F, rxn_ok = F, rxn_call = NA))
-fdata = q$GetFData(qtab, long.table = T)
-qtab$endpoint = fdata$fluor[fdata$cyc == max(fdata$cyc)]
+qtab <- q$AsTable(add.columns = 
+                    list(cq = data$cq,
+                         trgt_delta = NA,
+                         smaller.one = NA,
+                         targetstr = sapply(strsplit(data$tar$id,'_'),'[',1),
+                         state = sapply(strsplit(data$tar$id,'_'),'[',2),
+                         pair_well = NA,
+                         pair_state = NA, 
+                         ctrl_ok = TRUE,
+                         ctrl_ok_paired = TRUE,
+                         ctrl_delta = NA,
+                         outlier = FALSE,
+                         outlier_paired = FALSE,
+                         rxn_ok = FALSE,
+                         rxn_call = NA))
+fdata <- q$GetFData(qtab, long.table = TRUE)
+qtab$endpoint <- fdata$fluor[fdata$cyc == max(fdata$cyc)]
 ```
 
 3. Set control gene name. Check target and sample names, target states.
 ```{r}
-ctrlgene = 'B2m' # control gene name, as written in the data file
-ctrl.delta = 1.5 # allowed Cq differnece for ctrl gene for paired wells
-trgt.delta = 2 # Cq difference for allele call for paired wells (for close Cq values)
-cq.threshold = 30 # Cq for negative allele call
-targets = unique(qtab$targetstr) # get target names from unknown wells
-samples = unique(qtab$sample[qtab$sample.type == 'unkn']) # get sample names from unknown wells
-ctrl.plz = unique(qtab$sample[qtab$sample.type == 'pos']) # get ctrl plazmids names from wells marked as positive control
-positions = unique(qtab$position) #get occupied wells
+ctrlgene <- "B2m" # control gene name, as written in the data file
+ctrl.delta <- 1.5 # allowed Cq differnece for ctrl gene for paired wells
+trgt.delta <- 2 # Cq difference for allele call for paired wells (for close Cq values)
+cq.threshold <- 30 # Cq for negative allele call
+targets <- unique(qtab$targetstr) # get target names from unknown wells
+samples <- unique(qtab$sample[qtab$sample.type == 'unkn']) # get sample names from unknown wells
+ctrl.plz <- unique(qtab$sample[qtab$sample.type == 'pos']) # get ctrl plazmids names from wells marked as positive control
+positions <- unique(qtab$position) #get occupied wells
 #print obtained values
 cat('Targets\n', targets, '\n')
-targets = targets[targets != ctrlgene]
+targets <- targets[targets != ctrlgene]
 cat('Target states\n', unique(qtab$state), '\n')
 cat('Samples\n', samples, '\n')
 cat('Control gene set to', ctrlgene, '\n')
@@ -99,9 +113,13 @@ cat('Control plazmids\n', ctrl.plz)
 4. Updating table (well pairs, bad ctrls, possible evaporation)
 ```{r}
 # Add paired well to qtab$pair_well 
-for (position in positions){
-  pair = qtab$targetstr == qtab$targetstr[qtab$position == position & qtab$targetstr != ctrlgene][1] & qtab$sample == qtab$sample[qtab$position == position][1] & qtab$position != position 
-  qtab$pair_well[qtab$position == position] = qtab$position[pair]
+for (position in positions) {
+  pair <- 
+    qtab$targetstr == qtab$targetstr[qtab$position == position 
+                                     & qtab$targetstr != ctrlgene][1] &
+    qtab$sample == qtab$sample[qtab$position == position][1] &
+    qtab$position != position 
+  qtab$pair_well[qtab$position == position] <- qtab$position[pair]
 }
 
 # qtab$ctrl_ok = T #fast reset
@@ -110,47 +128,60 @@ for (position in positions){
 # Ctrl check and ctrl Cq delta for paired wells (qtab$ctrl_delta) 
 # Trgt gene Cq delta (qtab$trgt_delta)
 for (position in positions){
-  ctrl.gene.cq = qtab$cq[qtab$position == position & qtab$target == ctrlgene]
-  genes.cq = qtab$cq[qtab$position == position]
-  genes.cq.pair.well = qtab$cq[qtab$pair_well == position]
-  qtab$trgt_delta[qtab$position == position] = round(abs(genes.cq - genes.cq.pair.well), digits = 3)
+  ctrl.gene.cq <- qtab$cq[qtab$position == position & qtab$target == ctrlgene]
+  genes.cq <- qtab$cq[qtab$position == position]
+  genes.cq.pair.well <- qtab$cq[qtab$pair_well == position]
+  qtab$trgt_delta[qtab$position == position] <- round(abs(genes.cq - genes.cq.pair.well), digits = 3)
   if (ctrl.gene.cq > cq.threshold || is.na(ctrl.gene.cq)) {
-    qtab$ctrl_ok[qtab$position == position] = F
-    qtab$ctrl_ok_paired[qtab$position == position] = F
-    qtab$ctrl_ok_paired[qtab$pair_well == position] = F
+    qtab$ctrl_ok[qtab$position == position] <- FALSE
+    qtab$ctrl_ok_paired[qtab$position == position] <- FALSE
+    qtab$ctrl_ok_paired[qtab$pair_well == position] <- F
   } else {
-    qtab$ctrl_delta[qtab$position == position] = round(abs(ctrl.gene.cq - qtab$cq[qtab$pair_well == position & qtab$target == ctrlgene]), digits = 3)
+    qtab$ctrl_delta[qtab$position == position] <- 
+      round(abs(ctrl.gene.cq - qtab$cq[qtab$pair_well == position &
+                                         qtab$target == ctrlgene]), digits = 3)
   }
 }
 
 # qtab$smaller.one column
 for (position in positions){
-  genes.cq = qtab$cq[qtab$position == position]
-  genes.cq.pair.well = qtab$cq[qtab$pair_well == position]
-  qtab$smaller.one[qtab$position == position] = ifelse(!is.na(genes.cq < genes.cq.pair.well), genes.cq < genes.cq.pair.well, ifelse(is.na(genes.cq), F, T))
+  genes.cq <- qtab$cq[qtab$position == position]
+  genes.cq.pair.well <- qtab$cq[qtab$pair_well == position]
+  qtab$smaller.one[qtab$position == position] <- 
+    ifelse(!is.na(genes.cq < genes.cq.pair.well), genes.cq < genes.cq.pair.well,
+           ifelse(is.na(genes.cq), FALSE, TRUE))
 }
 
 # Check for evaporation by outlier control gene values, fill in 'qtab$outlier' and 'qtab$outlier_paired' columns.
-outlier_pos = qtab$position[qtab$endpoint %in% boxplot.stats(qtab$endpoint[qtab$target == ctrlgene & qtab$ctrl_ok == T])$out]
-qtab$outlier[qtab$position %in% outlier_pos] = T
-qtab$outlier_paired[qtab$position %in% outlier_pos | qtab$pair_well %in% outlier_pos] = T
+outlier_pos <- qtab$position[qtab$endpoint %in% boxplot.stats(
+  qtab$endpoint[qtab$target == ctrlgene & qtab$ctrl_ok == TRUE])$out]
+qtab$outlier[qtab$position %in% outlier_pos] <- TRUE
+qtab$outlier_paired[qtab$position %in% outlier_pos | qtab$pair_well %in% outlier_pos] <- TRUE
 
 # qtab$rxn_ok
-qtab$rxn_ok[qtab$ctrl_ok_paired == T & qtab$outlier_paired == F & qtab$ctrl_delta < ctrl.delta] = T
+qtab$rxn_ok[qtab$ctrl_ok_paired == T &
+              qtab$outlier_paired == F &
+              qtab$ctrl_delta < ctrl.delta] <- TRUE
 
 # qtab$state NAs substitution
-qtab$state[is.na(qtab$state) & qtab$cq < cq.threshold & !is.na(qtab$cq) & qtab$rxn_ok == T] = 'Pos'
-qtab$state[is.na(qtab$state) & (qtab$cq > cq.threshold | is.na(qtab$cq)) & qtab$rxn_ok == T] = 'Neg'
+qtab$state[is.na(qtab$state) & qtab$cq < cq.threshold &
+             !is.na(qtab$cq) & qtab$rxn_ok == T] <- "Pos"
+qtab$state[is.na(qtab$state) & (qtab$cq > cq.threshold | is.na(qtab$cq)) &
+             qtab$rxn_ok == T] <- "Neg"
 
 # qtab$pair_state
 for (position in positions){
-  qtab$pair_state[qtab$position == position] = qtab$state[qtab$pair_well == position]
+  qtab$pair_state[qtab$position == position] <- qtab$state[qtab$pair_well == position]
 }
 
 # output for quality check: low ctrl gene Cq and evaporation prediction (based on endpoint fluorecence outliers for ctrl gene)
-neg_ctrlgene_sample_wells = unique(qtab$position[qtab$ctrl_ok == F & qtab$sample.type == 'unkn'])
-cat('Sample wells with negative', ctrlgene, ':\n', ifelse(length(neg_ctrlgene_sample_wells) == 0,'None', neg_ctrlgene_sample_wells), '\n')
-cat('Possible evaporation in\n', unique(qtab$position[qtab$outlier == T])) 
+neg_ctrlgene_sample_wells <- 
+  unique(qtab$position[qtab$ctrl_ok == FALSE &
+                         qtab$sample.type == 'unkn'])
+cat('Sample wells with negative', ctrlgene, ':\n',
+    ifelse(length(neg_ctrlgene_sample_wells) == 0,
+           'None', neg_ctrlgene_sample_wells), '\n')
+cat('Possible evaporation in\n', unique(qtab$position[qtab$outlier == TRUE])) 
 ```
 
 5. Fill in qtab$rxn_call
@@ -158,17 +189,23 @@ cat('Possible evaporation in\n', unique(qtab$position[qtab$outlier == T]))
 qtab$rxn_call = NA
 # qtab$rxn_call fill in
 for (position in positions) {
-  for (target in qtab$targetstr[qtab$position == position]){
-    index = qtab$position == position & qtab$targetstr == target
-    homozig = qtab$rxn_ok[index] == T & (qtab$trgt_delta[index] > trgt.delta | is.na(qtab$trgt_delta[index])) & qtab$smaller.one[index] == T
-    hetero = qtab$rxn_ok[index] == T & qtab$trgt_delta[index] < trgt.delta & !is.na(qtab$trgt_delta[index]) 
-    if (homozig & qtab$cq[index] < cq.threshold & !is.na(qtab$cq[index])){
-      qtab$rxn_call[index] = paste(qtab$state[index],qtab$state[index], sep = '/')
-      qtab$rxn_call[qtab$pair_well == position & qtab$targetstr == target] = paste(qtab$state[index],qtab$state[index], sep = '/')
+  for (target in qtab$targetstr[qtab$position == position]) {
+    index <- qtab$position == position & qtab$targetstr == target
+    homozig <- qtab$rxn_ok[index] == TRUE & (qtab$trgt_delta[index] > trgt.delta | is.na(qtab$trgt_delta[index])) & qtab$smaller.one[index] == TRUE
+    hetero <- qtab$rxn_ok[index] == TRUE &
+      qtab$trgt_delta[index] < trgt.delta &
+      !is.na(qtab$trgt_delta[index]) 
+    if (homozig & qtab$cq[index] < cq.threshold & !is.na(qtab$cq[index])) {
+      qtab$rxn_call[index] <- paste(qtab$state[index],qtab$state[index], sep = '/')
+      qtab$rxn_call[qtab$pair_well == position &
+                      qtab$targetstr == target] <-
+        paste(qtab$state[index],qtab$state[index], sep = '/')
     }
-    if (hetero & qtab$cq[index] < cq.threshold & !is.na(qtab$cq[index])){
-      qtab$rxn_call[index] = paste(qtab$state[index], qtab$pair_state[index], sep = '/')
-      qtab$rxn_call[qtab$pair_well == position & qtab$targetstr == target] = paste(qtab$state[index], qtab$pair_state [index], sep = '/')
+    if (hetero & qtab$cq[index] < cq.threshold & !is.na(qtab$cq[index])) {
+      qtab$rxn_call[index] <- paste(qtab$state[index],
+                                    qtab$pair_state[index], sep = '/')
+      qtab$rxn_call[qtab$pair_well == position & qtab$targetstr == target] <-
+        paste(qtab$state[index], qtab$pair_state [index], sep = '/')
     }
   }
 }
