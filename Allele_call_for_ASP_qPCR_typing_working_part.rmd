@@ -14,51 +14,63 @@ The idea is to use hydrolysis probes to multiplex and speed up PCR with allele-s
 
 The method and one of plausible application were described in Romaniuk et al., Front. Immunology 2019 (in press)
 
-# Make sure your RDML file has all targets named (no template control included).
-# Example: "Target1_wild", "Target1_mut" (note underscore).
-# Two cells with same sample name, target name (before underscore) will be 
-# compared and call will be made for each target state written after underscore.
+***
+**WARNING**
+
+Make sure your RDML file has all targets named (no template control included).
+
+Example: "Target1_wild", "Target1_mut" (note underscore).
+
+Two cells with same sample name, target name (before underscore) will be 
+compared and call will be made for each target state written after underscore.
   
-# The tool was checked for RDML v1.1 files made with BioRad CFX manager v3.1.
+The tool was checked for RDML v1.1 files made with BioRad CFX manager v3.1.
+
+***
 
 Press Ctrl+Shift+Enter to run needed cell below.
 
 OPTIONAL: Install packages.
-```{r}
+```{r eval=FALSE}
 install.packages("devtools")
 install_github("kablag/RDML")
 ```
 
 0. Start libraries.
 ```{r}
-setwd('c:/Users/admin/SkyDrive/DimaTools/')
+#setwd('c:/Users/admin/SkyDrive/DimaTools/')
 library(devtools)
 library(RDML)
 ```
 
 1. Import RDML file and print its overview as dendrogram, check correct target naming.
+```{r results='hide'}
+#q = RDML$new(file.choose()) #will open file selection dialog 
+q <- RDML$new("2018-04-11_people2_with_letters.rdml")
+```
 ```{r}
-q = RDML$new(file.choose()) #will open file selection dialog 
 q$AsDendrogram() #most valuable picture
 ```
 
 2. Make data table.
 Added columns:
-cq - cq as calculated by a qPCR machine software;
-trgt_delta – cq difference for paired wells;
-smaller.one – the one of paired wells with smaller cq (Boolean);
-targetstr – target name obtained from the well sample name as set in a qPCR machine software (should be written “Target_State”, note underscore);
-state – state name (whatever is detected by the allele-specific primer, for example SNP allele) obtained from the well sample name as set in a qPCR machine software (should be written “Target_State”, note underscore), if no state found – ‘Pos’ would be set as state;
-pair_well – pair well deduced from sample and target names;
-pair_state – the well state as described above, but for the paired well;
-ctrl_ok – check qPCR for control gene and compare the paired wells control qPCR results (Boolean);
-ctrl_ok_paired – sums check for both paired wells (Boolean);
-ctrl_delta – cq difference for control qPCR reaction for the paired wells;
-outlier – checks for plausible evaporation or other control qPCR problems in the wells by calculating outliers in the control gene qPCR endpoint fluorescence (the ‘endpoint’ column in the table) (Boolean);
-outlier_paired – sums outlier check for the paired wells (Boolean);
-rxn_ok – sums quality controls for both wells: control reactions, plausible evaporation and control gene cq difference (Boolean);
-rxn_call – allele call for both wells, it shows the sample states for the target; won’t show the call if ‘rxn_ok’ is false either for the well or for the paired well;
-endpoint – florescence data for the last cycle of the reaction.
+
+* cq - cq as calculated by a qPCR machine software;
+* trgt_delta – cq difference for paired wells;
+* smaller.one – the one of paired wells with smaller cq (Boolean);
+* targetstr – target name obtained from the well sample name as set in a qPCR machine software (should be written “Target_State”, note underscore);
+* state – state name (whatever is detected by the allele-specific primer, for example SNP allele) obtained from the well sample name as set in a qPCR machine software (should be written “Target_State”, note underscore), if no state found – ‘Pos’ would be set as state;
+* pair_well – pair well deduced from sample and target names;
+* pair_state – the well state as described above, but for the paired well;
+* ctrl_ok – check qPCR for control gene and compare the paired wells control qPCR results (Boolean);
+* ctrl_ok_paired – sums check for both paired wells (Boolean);
+* ctrl_delta – cq difference for control qPCR reaction for the paired wells;
+* outlier – checks for plausible evaporation or other control qPCR problems in the wells by calculating outliers in the control gene qPCR endpoint fluorescence (the ‘endpoint’ column in the table) (Boolean);
+* outlier_paired – sums outlier check for the paired wells (Boolean);
+* rxn_ok – sums quality controls for both wells: control reactions, plausible evaporation and control gene cq difference (Boolean);
+* rxn_call – allele call for both wells, it shows the sample states for the target; won’t show the call if ‘rxn_ok’ is false either for the well or for the paired well;
+* endpoint – florescence data for the last cycle of the reaction.
+
 ```{r}
 qtab = q$AsTable(add.columns = list(cq = data$cq, trgt_delta = NA, smaller.one = NA, targetstr = sapply(strsplit(data$tar$id,'_'),'[',1), state = sapply(strsplit(data$tar$id,'_'),'[',2), pair_well = NA, pair_state = NA, ctrl_ok = T, ctrl_ok_paired = T, ctrl_delta = NA, outlier = F, outlier_paired = F, rxn_ok = F, rxn_call = NA))
 fdata = q$GetFData(qtab, long.table = T)
